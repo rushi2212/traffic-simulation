@@ -32,7 +32,8 @@ def make_edges(arterial_lanes: int = 2, local_lanes: int = 1,
     edges = []
     for i, (a, b, kind) in enumerate(pairs, 1):
         na, nb = node_by_id[a], node_by_id[b]
-        length = round(math.hypot((na["x"]-nb["x"])*1200, (na["y"]-nb["y"])*900))
+        length = round(math.hypot(
+            (na["x"]-nb["x"])*1200, (na["y"]-nb["y"])*900))
         arterial = kind == "arterial"
         edges.append({"id": f"R{i}", "from": a, "to": b, "length_m": length,
                       "lanes": arterial_lanes if arterial else local_lanes,
@@ -61,7 +62,8 @@ def _shortest_path(start: str, end: str, edges: list[dict]) -> list[tuple[str, s
             return route
         for nxt, edge_id, weight in graph[node]:
             if nxt not in best:
-                heapq.heappush(queue, (cost + weight, nxt, route + [(edge_id, node, nxt)]))
+                heapq.heappush(queue, (cost + weight, nxt,
+                               route + [(edge_id, node, nxt)]))
     return []
 
 
@@ -71,11 +73,13 @@ def simulate(vehicles: int = 120, duration_s: int = 240, signal_cycle_s: int = 6
     if not 20 <= vehicles <= 500:
         raise ValueError("Vehicle demand must be between 20 and 500.")
     if not 60 <= duration_s <= 600:
-        raise ValueError("Simulation duration must be between 60 and 600 seconds.")
+        raise ValueError(
+            "Simulation duration must be between 60 and 600 seconds.")
     if not 30 <= signal_cycle_s <= 120:
         raise ValueError("Signal cycle must be between 30 and 120 seconds.")
     if arterial_lanes not in (1, 2, 3, 4) or local_lanes not in (1, 2):
-        raise ValueError("Arterials allow 1–4 lanes; local roads allow 1–2 lanes.")
+        raise ValueError(
+            "Arterials allow 1–4 lanes; local roads allow 1–2 lanes.")
 
     rng = random.Random(seed)
     edges = make_edges(arterial_lanes, local_lanes, flyover)
@@ -92,7 +96,8 @@ def simulate(vehicles: int = 120, duration_s: int = 240, signal_cycle_s: int = 6
     frames, completed_times, moving_speeds = [], [], []
     total_distance = 0.0
     max_queue = 0
-    signal_offset = {node_id: (i * signal_cycle_s // 3) for i, node_id in enumerate(node_by_id)}
+    signal_offset = {node_id: (i * signal_cycle_s // 3)
+                     for i, node_id in enumerate(node_by_id)}
     spawn_cursor = 0
 
     def signal_green(node: str, t: int) -> bool:
@@ -125,7 +130,8 @@ def simulate(vehicles: int = 120, duration_s: int = 240, signal_cycle_s: int = 6
             spawn_cursor += 1
 
         # Follow a lead vehicle in the same lane, respecting lane-specific headway.
-        on_lane: dict[tuple[str, str, str, int], list[dict]] = defaultdict(list)
+        on_lane: dict[tuple[str, str, str, int],
+                      list[dict]] = defaultdict(list)
         for car in cars:
             if car["leg"] < len(car["route"]):
                 edge_id, a, b = car["route"][car["leg"]]
@@ -143,7 +149,8 @@ def simulate(vehicles: int = 120, duration_s: int = 240, signal_cycle_s: int = 6
                     desired = min(desired, max(0.0, (gap - 7.0) / 1.4))
                 at_end = car["leg"] == len(car["route"]) - 1
                 if not at_end and node_by_id[b]["signal"] and not signal_green(b, t):
-                    desired = min(desired, max(0.0, (length - 5.0 - car["progress"]) / 1.4))
+                    desired = min(desired, max(
+                        0.0, (length - 5.0 - car["progress"]) / 1.4))
                 advance = min(desired, max(0.0, length - car["progress"]))
                 car["speed"] = advance
                 car["progress"] += advance
@@ -217,11 +224,11 @@ def simulate(vehicles: int = 120, duration_s: int = 240, signal_cycle_s: int = 6
                 frac = min(1.0, car["progress"] / edge["length_m"])
                 frame_cars.append({"id": car["id"], "edge": edge_id,
                                   "x": na["x"] + (nb["x"]-na["x"])*frac,
-                                  "y": na["y"] + (nb["y"]-na["y"])*frac,
-                                  "heading": math.degrees(math.atan2(nb["y"]-na["y"], nb["x"]-na["x"])),
-                                  "lane": car["lane"], "lanes": edge["lanes"],
-                                  "speed_kmh": round(car["speed"]*3.6, 1), "waiting": car["waiting"],
-                                  "flyover": edge["flyover"]})
+                                   "y": na["y"] + (nb["y"]-na["y"])*frac,
+                                   "heading": math.degrees(math.atan2(nb["y"]-na["y"], nb["x"]-na["x"])),
+                                   "lane": car["lane"], "lanes": edge["lanes"],
+                                   "speed_kmh": round(car["speed"]*3.6, 1), "waiting": car["waiting"],
+                                   "flyover": edge["flyover"]})
             for edge in edges:
                 count = sum(1 for c in cars if c["leg"] < len(c["route"])
                             and c["route"][c["leg"]][0] == edge["id"])
@@ -233,9 +240,12 @@ def simulate(vehicles: int = 120, duration_s: int = 240, signal_cycle_s: int = 6
             frames.append({"time_s": t, "cars": frame_cars, "queue": queue_count,
                            "density": density, "signals": signals})
 
-    avg_trip = round(sum(completed_times)/len(completed_times), 1) if completed_times else None
-    avg_speed = round(sum(moving_speeds)/len(moving_speeds), 1) if moving_speeds else 0
-    max_utilization = max((d["utilization"] for f in frames for d in f["density"]), default=0)
+    avg_trip = round(sum(completed_times)/len(completed_times),
+                     1) if completed_times else None
+    avg_speed = round(sum(moving_speeds)/len(moving_speeds),
+                      1) if moving_speeds else 0
+    max_utilization = max((d["utilization"]
+                          for f in frames for d in f["density"]), default=0)
     return {"nodes": NODES, "edges": edges, "frames": frames,
             "metrics": {"demand": vehicles, "completed": len(completed_times),
                         "in_network": len(cars), "completion_pct": round(100*len(completed_times)/vehicles, 1),
